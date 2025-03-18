@@ -1,7 +1,8 @@
 import User from "../models/user.model.js"
 import bcryptjs from "bcryptjs"
+import cryto from "crypto"
 import { generateToken } from "../utils/generateToken.js"
-import { sendVerificationEmail, sendWellcomeEmail } from "../mail/email.js"
+import { sendEmailResetPassSuccess, sendResetPasswordEmail, sendVerificationEmail, sendWellcomeEmail } from "../mail/email.js"
 export const signup = async (req, res) => {
     try {
         const { email, password, name } = req.body
@@ -79,10 +80,103 @@ export const verifyEmail = async (req, res) => {
 }
 
 export const login = async (req, res) => {
-    res.send("hello login")
+    try {
+        const { email, password } = req.body
+        if (!email || !password) {
+            return res.status(400).json({ message: "All fields are required" })
+        }
+        const user = await User.findOne({ email })
+        if (!user) {
+            return res.status(400).json({ message: "Email hasn't been registed" })
+        }
+        const checkPass = await bcryptjs.compare(password, user.password)
+        if (!checkPass) {
+            return res.status(400).json({ message: "Password is correct" })
+        }
+        generateToken(user._id, res)
+        user.lastLogin = new Date()
+        await user.save()
+        res.status(200).json({
+            message: "Login Successfull", user: {
+                ...user._doc,
+                password: undefined
+            }
+        })
+    } catch (error) {
+        console.log("Error from login", error.message)
+        res.status(500).json("Error Server")
+    }
 }
 
 export const logout = async (req, res) => {
-    res.send("hello logout")
+    try {
+        res.clearCookie("jwt")
+        res.status(200).json({ message: "Logout successfull" })
+    } catch (error) {
+        console.log("Error from logout", error.message)
+        res.status(500).json("Error Server")
+    }
+}
+
+export const forgotPassword = async (req, res) => {
+    const { email } = req.body
+    try {
+        const user = await User.findOne({ email }).select("-password")
+        if (!user) {
+            return res.status(400).json({ message: "Invalid Email" })
+        }
+        const resetToken = await cryto.randomBytes(20).toString("hex")
+        const resetTokenExpired = Date.now() + 1 * 60 * 60 * 1000
+        user.resetPasswordToken = resetToken
+        user.resetPasswordExpiresAt = resetTokenExpired
+        await user.save()
+        sendResetPasswordEmail(email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`)
+        res.status(200).json({
+            message: "Success", user: user
+        })
+
+    } catch (error) {
+        console.log("Error from resetPass", error.message)
+        res.status(500).json("Error Server")
+    }
+}
+
+export const resetPassword = async (req, res) => {
+    const { password } = req.body
+    const { token } = req.params
+    try {
+        const user = await User.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpiresAt: { $gt: Date.now() }
+        })
+        if (!user) {
+            return res.status(400).json({ message: "Invalid Token or TokenExpired" })
+        }
+        const salt = await bcryptjs.genSalt(10)
+        const hashPass = await bcryptjs.hash(password, salt)
+        user.resetPasswordToken = undefined
+        user.resetPasswordExpiresAt = undefined
+        user.password = hashPass
+        await user.save()
+        await sendEmailResetPassSuccess(user.email, user.name)
+        res.status(200).json({
+            message: "Success", user: {
+                ...user._doc,
+                password: undefined
+            }
+        })
+    } catch (error) {
+        console.log("Error from resetPass", error.message)
+        res.status(500).json({ message: "Error Server" })
+    }
+}
+
+export const checkAuth = (req, res) => {
+    try {
+        res.status(200).json({ message: "success", user: req.user })
+    } catch (error) {
+        console.log("Error from checkAuth", error.message)
+        res.status(500).json({ message: "Error Server" })
+    }
 }
 
