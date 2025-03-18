@@ -16,7 +16,30 @@ export const sendVerificationEmail = async (email, verificationToken) => {
         console.log("Email sent successfully", response);
     } catch (error) {
         console.error(`Error sending verification`, error);
-
         return new Error(`Error sending verification email: ${error}`);
     }
 };
+
+export const sendWellcomeEmail = async (email, name) => {
+    const recipient = [{ email }]
+    try {
+        const response = await mailtrapClient.send({
+            from: sender,
+            to: recipient,
+            template_uuid: "1307ba36-fa31-4655-8809-640cde94aad4",
+            template_variables: {
+                "name": name,
+                "company_info_name": "SeeChangeIT",
+                "company_info_address": "Q12 TP HCM",
+                "company_info_city": "Technology",
+                "company_info_zip_code": "700000",
+                "company_info_country": "VIETNAM"
+            }
+        })
+        console.log("Email sent successfully", response);
+
+    } catch (error) {
+        console.error(`Error sending wellcome`, error);
+        return new Error(`Error sending wellcome email: ${error}`);
+    }
+}
