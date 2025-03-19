@@ -147,7 +147,7 @@ export const resetPassword = async (req, res) => {
     try {
         const user = await User.findOne({
             resetPasswordToken: token,
-            resetPasswordExpiresAt: { $gt: Date.now() }
+            // resetPasswordExpiresAt: { $gt: Date.now() }
         })
         if (!user) {
             return res.status(400).json({ message: "Invalid Token or TokenExpired" })

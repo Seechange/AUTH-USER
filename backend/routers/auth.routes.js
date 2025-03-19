@@ -9,6 +9,6 @@ router.post("/logout", logout)
 router.post("/verify-email", verifyEmail)
 router.post("/forgot-password", forgotPassword)
 router.post("/reset-password/:token", resetPassword)
-router.post("/check-auth", protectRoute, checkAuth)
+router.get("/check-auth", protectRoute, checkAuth)
 
 export default router
